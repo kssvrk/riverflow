@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />
+            <title>Indian Peninsula Elevation and Rivers</title>
+
+            <!-- Leaflet -->
+            <link rel="stylesheet" href="https://unpkg.com/leaflet@0.7.5/dist/leaflet.css" />
+            <script src="https://unpkg.com/leaflet@0.7.5/dist/leaflet.js"></script>
+
+            <style>
+                body { margin:0; padding:0; }
+                body, table, tr, td, th, div, h1, h2, input { font-family: "Calibri", "Trebuchet MS", "Ubuntu", Serif; font-size: 11pt; }
+                #map { position:absolute; top:0; bottom:0; width:100%;
+                    background: #fff !important;
+                     } /* full size */
+                .ctl {
+                    padding: 2px 10px 2px 10px;
+                    background: white;
+                    background: rgba(255,255,255,0.9);
+                    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+                    border-radius: 5px;
+                    text-align: center;
+                }
+                .title {
+                    font-size: 18pt;
+                    font-weight: bold;
+                }
+                .src {
+                    font-size: 10pt;
+                }
+                
+
+            </style>
+
+        </head>
+        <body>
+
+        <div id="map"></div>
+        
+        <script>
+        /* **** Leaflet **** */
+
+        // Base layers
+        //  .. OpenStreetMap
+        var osm = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors', minZoom: 4, maxZoom: 12});
+
+        //  .. CartoDB Positron
+        var cartodb = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>', minZoom: 4, maxZoom: 12});
+
+        //  .. OSM Toner
+        var toner = L.tileLayer('http://{s}.tile.stamen.com/toner/{z}/{x}/{y}.png', {attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.', minZoom: 4, maxZoom: 12});
+
+        //  .. White background
+        var white = L.tileLayer("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAAA1BMVEX///+nxBvIAAAAH0lEQVQYGe3BAQ0AAADCIPunfg43YAAAAAAAAAAA5wIhAAAB9aK9BAAAAABJRU5ErkJggg==", {minZoom: 4, maxZoom: 12});
+
+        // Overlay layers (TMS)
+        var lyr = L.tileLayer('./{z}/{x}/{y}.png', {tms: 1, opacity: 1, attribution: "@iamkrishradha", minZoom: 4, maxZoom: 12});
+         
+        
+        // Map
+        var map = L.map('map', {
+            center: [16.00002996449892, 78.49996223964762],
+            zoom:  4,
+            minZoom: 4,
+            maxZoom: 12,
+            layers: []
+        });
+        lyr.addTo(map);
+        //var basemaps = {"OpenStreetMap": osm, "CartoDB Positron": cartodb, "Stamen Toner": toner, "Without background": white}
+        var overlaymaps = {"Elevation": lyr}
+        var basemaps={}
+
+        // Title
+        var title = L.control();
+        title.onAdd = function(map) {
+            this._div = L.DomUtil.create('div', 'ctl title');
+            this.update();
+            return this._div;
+        };
+        title.update = function(props) {
+            this._div.innerHTML = "Indian Peninsula Elevation and Rivers";
+        };
+        title.addTo(map);
+
+        // Note
+        var src = 'For educational Purposes only. Made with Open data';
+        var title = L.control({position: 'bottomleft'});
+        title.onAdd = function(map) {
+            this._div = L.DomUtil.create('div', 'ctl src');
+            this.update();
+            return this._div;
+        };
+        title.update = function(props) {
+            this._div.innerHTML = src;
+        };
+        title.addTo(map);
+
+
+        // Add base layers
+       ctrl= L.control.layers(basemaps, overlaymaps, {collapsed: false,position: 'topleft'}).addTo(map);
+
+        fetch("./worldmap.json")
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            geojsonLayer=L.geoJson(data).addTo(map);
+            geojsonLayer.setStyle({
+            fillColor: 'blue',
+            fillOpacity: 0,
+            weight: 2,
+            color:'black'
+            });
+            ctrl.addOverlay(geojsonLayer,'World Outline');
+        });   
+
+        fetch("./southrivers-simple.json")
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            geojsonLayer1=L.geoJson(data,{
+
+            onEachFeature: function(feature, layer) {
+            
+                layer.bindPopup(
+                    '<h1>'+feature.properties.rivname+'</h1>'//+'<hr> <p> Basin :'+feature.properties.ba_name+'</p><br/><p> Origin : '+feature.properties.origin+' </p>'
+                    );     
+            }
+            
+            })
+            geojsonLayer1.setStyle({
+            fillColor: 'blue',
+            fillOpacity: 0,
+            weight: 3,
+            color:'blue'
+            });
+            geojsonLayer1.addTo(map);
+            ctrl.addOverlay(geojsonLayer1,'Rivers');
+        });   
+
+        // Fit to overlay bounds (SW and NE points with (lat, lon))
+        map.fitBounds([[7.999921040108962, 89.00006336818413], [24.000138888888884, 67.9998611111111]]);
+
+        </script>
+
+        </body>
+        </html>
+
+        
